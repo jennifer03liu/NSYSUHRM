@@ -231,12 +231,6 @@
 
             // --- .ics 檔案生成與下載 ---
             function generateICS(course) {
-                const toICSDate = (date, time) => {
-                    const [hours, minutes] = time.split(':');
-                    const d = new Date(date);
-                    d.setHours(hours, minutes, 0, 0);
-                    return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-                }
                 const toICSDateLocal = (date, time) => {
                     const [year, month, day] = date.split('-');
                     return `${year}${month}${day}T${time.replace(':', '')}00`;
@@ -244,24 +238,35 @@
 
                 let icsEvents = [];
                 if (course.schedule.type === 'weekly') {
-                    // 對於週課，使用 RRULE
+                    // 對於週課，計算最後一次上課日期並使用 RRULE 的 UNTIL 屬性
                     const startDate = new Date(course.schedule.startDate);
                     const startTime = course.schedule.startTime;
                     const endTime = course.schedule.endTime;
                     const dayMap = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
+                    // 計算最後一次上課的日期
+                    const lastClassDate = new Date(startDate);
+                    lastClassDate.setDate(startDate.getDate() + (course.schedule.weeks - 1) * 7);
+
+                    // 格式化 UNTIL 日期時間字串 (e.g., 20251224T213000)
+                    // UNTIL 的值必須是 UTC 時間，或者與 DTSTART 有相同的時區。此處我們保持與 DTSTART 一致。
+                    const untilDatePart = `${lastClassDate.getFullYear()}${(lastClassDate.getMonth() + 1).toString().padStart(2, '0')}${lastClassDate.getDate().toString().padStart(2, '0')}`;
+                    const untilTimePart = endTime.replace(':', '') + '00';
+                    const untilDateTime = `${untilDatePart}T${untilTimePart}`;
+
                     icsEvents.push([
                         'BEGIN:VEVENT',
                         `DTSTART;TZID=Asia/Taipei:${toICSDateLocal(course.schedule.startDate, startTime)}`,
                         `DTEND;TZID=Asia/Taipei:${toICSDateLocal(course.schedule.startDate, endTime)}`,
-                        `RRULE:FREQ=WEEKLY;COUNT=${course.schedule.weeks};BYDAY=${dayMap[startDate.getDay()]}`,
+                        // 將 COUNT 改為 UNTIL 以設定明確的結束日期
+                        `RRULE:FREQ=WEEKLY;UNTIL=${untilDateTime};BYDAY=${dayMap[startDate.getDay()]}`,
                         `SUMMARY:${course.name}`,
                         `LOCATION:${course.location}`,
                         `DESCRIPTION:授課教師: ${course.instructor}`,
                         'END:VEVENT'
                     ].join('\n'));
                 } else if (course.schedule.type === 'dates') {
-                    // 對於特定日期課程，為每個日期創建一個事件
+                    // 對於特定日期課程，為每個日期創建一個獨立的事件
                     course.schedule.dates.forEach(dateStr => {
                          icsEvents.push([
                             'BEGIN:VEVENT',
