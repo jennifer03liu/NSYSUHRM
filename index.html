@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>114-1 學年度課程行事曆</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+        }
+        .calendar-grid {
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
+        .calendar-day {
+            min-height: 120px;
+        }
+        .event {
+            font-size: 0.8rem;
+            padding: 2px 4px;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            color: #1f2937;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">114-1 學年度課程行事曆</h1>
+            <p class="text-gray-600 mt-2">2025年 9月 - 12月</p>
+        </header>
+
+        <main id="calendar-container"></main>
+
+        <footer class="mt-8 p-6 bg-white rounded-lg shadow-md">
+            <h2 class="text-xl font-bold mb-4">課程圖例與匯出</h2>
+            <div id="legend-container" class="space-y-4">
+                <!-- Legend and export buttons will be generated here -->
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- 課程資料 ---
+            // 根據您提供的圖片資料進行整理
+            const courses = [
+                {
+                    name: '人力發展管理',
+                    instructor: '謝慧賢',
+                    schedule: {
+                        type: 'weekly',
+                        dayOfWeek: 3, // 星期三 (0=Sun, 1=Mon, ..., 6=Sat)
+                        startTime: '18:30',
+                        endTime: '21:30',
+                        weeks: 16,
+                        startDate: '2025-09-10'
+                    },
+                    location: '台師大',
+                    color: 'bg-blue-200',
+                    textColor: 'text-blue-800'
+                },
+                {
+                    name: '人工智慧在測驗下的相關應用與發展',
+                    instructor: '鄭怡玲',
+                    schedule: {
+                        type: 'dates',
+                        dates: ['2025-09-13', '2025-09-27', '2025-10-11', '2025-10-25', '2025-11-08', '2025-11-22', '2025-12-06', '2025-12-20'],
+                        startTime: '12:00',
+                        endTime: '18:00'
+                    },
+                    location: '台師大 (11/3起至臺北商業大學)',
+                    color: 'bg-green-200',
+                    textColor: 'text-green-800'
+                },
+                {
+                    name: '績效管理與人才發展',
+                    instructor: '王豫萱',
+                    schedule: {
+                        type: 'dates',
+                        dates: ['2025-09-14', '2025-09-28', '2025-10-12', '2025-10-26', '2025-11-09', '2025-11-23', '2025-12-07', '2025-12-21'],
+                        startTime: '12:00',
+                        endTime: '18:00'
+                    },
+                    location: '台師大',
+                    color: 'bg-yellow-200',
+                    textColor: 'text-yellow-800'
+                },
+                {
+                    name: '薪酬管理',
+                    instructor: '劉念琪',
+                    schedule: {
+                        type: 'dates',
+                        dates: ['2025-09-20', '2025-09-21', '2025-10-18', '2025-10-19', '2025-11-15', '2025-11-16', '2025-11-29', '2025-11-30'],
+                        startTime: '09:00', // 假設為 9:00-17:00
+                        endTime: '17:00'
+                    },
+                    location: '台師大',
+                    color: 'bg-purple-200',
+                    textColor: 'text-purple-800'
+                }
+            ];
+
+            const calendarContainer = document.getElementById('calendar-container');
+            const legendContainer = document.getElementById('legend-container');
+            const semesterStart = new Date('2025-09-01');
+            const semesterEnd = new Date('2025-12-31');
+
+            // --- 事件資料處理 ---
+            // 將所有課程事件展開成單一日期事件
+            const events = [];
+            courses.forEach(course => {
+                if (course.schedule.type === 'weekly') {
+                    let currentDate = new Date(course.schedule.startDate);
+                    for (let i = 0; i < course.schedule.weeks; i++) {
+                        events.push({
+                            date: new Date(currentDate),
+                            name: course.name,
+                            time: `${course.schedule.startTime}-${course.schedule.endTime}`,
+                            color: course.color,
+                            textColor: course.textColor
+                        });
+                        currentDate.setDate(currentDate.getDate() + 7);
+                    }
+                } else if (course.schedule.type === 'dates') {
+                    course.schedule.dates.forEach(dateStr => {
+                        events.push({
+                            date: new Date(dateStr),
+                            name: course.name,
+                            time: `${course.schedule.startTime}-${course.schedule.endTime}`,
+                            color: course.color,
+                            textColor: course.textColor
+                        });
+                    });
+                }
+            });
+            
+            // --- 月曆生成 ---
+            for (let month = semesterStart.getMonth(); month <= semesterEnd.getMonth(); month++) {
+                calendarContainer.innerHTML += generateMonthHTML(2025, month, events);
+            }
+
+            // --- 圖例與匯出按鈕生成 ---
+            courses.forEach(course => {
+                const legendItem = document.createElement('div');
+                legendItem.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                legendItem.innerHTML = `
+                    <div class="flex items-center">
+                        <span class="legend-color ${course.color}"></span>
+                        <div>
+                            <p class="font-semibold">${course.name}</p>
+                            <p class="text-sm text-gray-600">${course.instructor} / ${course.location}</p>
+                        </div>
+                    </div>
+                    <button data-course-name="${course.name}" class="export-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                        加入行事曆
+                    </button>
+                `;
+                legendContainer.appendChild(legendItem);
+            });
+
+            // --- 功能函數 ---
+            function generateMonthHTML(year, month, allEvents) {
+                const monthName = `${year}年 ${month + 1}月`;
+                const firstDay = new Date(year, month, 1);
+                // 調整星期起始日為星期一
+                const startOffset = (firstDay.getDay() + 6) % 7;
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                let daysHTML = '';
+                // 補上前一個月的空白
+                for (let i = 0; i < startOffset; i++) {
+                    daysHTML += `<div class="bg-gray-100 rounded-lg"></div>`;
+                }
+                
+                // 填入當月日期
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const currentDate = new Date(year, month, day);
+                    const eventsOnDay = allEvents.filter(e => 
+                        e.date.getFullYear() === currentDate.getFullYear() &&
+                        e.date.getMonth() === currentDate.getMonth() &&
+                        e.date.getDate() === currentDate.getDate()
+                    );
+
+                    let eventsHTML = '';
+                    eventsOnDay.forEach(event => {
+                        eventsHTML += `<div class="event ${event.color} ${event.textColor}" title="${event.name} ${event.time}">
+                            ${event.name}
+                        </div>`;
+                    });
+
+                    daysHTML += `
+                        <div class="calendar-day border border-gray-200 bg-white rounded-lg p-2 flex flex-col">
+                            <span class="font-semibold self-start">${day}</span>
+                            <div class="mt-1 flex-grow">${eventsHTML}</div>
+                        </div>`;
+                }
+
+                return `
+                    <div class="mb-10">
+                        <h2 class="text-2xl font-bold text-center mb-4">${monthName}</h2>
+                        <div class="grid calendar-grid gap-1">
+                            <div class="text-center font-bold text-gray-600 py-2">一</div>
+                            <div class="text-center font-bold text-gray-600 py-2">二</div>
+                            <div class="text-center font-bold text-gray-600 py-2">三</div>
+                            <div class="text-center font-bold text-gray-600 py-2">四</div>
+                            <div class="text-center font-bold text-gray-600 py-2">五</div>
+                            <div class="text-center font-bold text-gray-600 py-2 text-blue-600">六</div>
+                            <div class="text-center font-bold text-gray-600 py-2 text-red-600">日</div>
+                            ${daysHTML}
+                        </div>
+                    </div>`;
+            }
+
+            // --- .ics 檔案生成與下載 ---
+            function generateICS(course) {
+                const toICSDate = (date, time) => {
+                    const [hours, minutes] = time.split(':');
+                    const d = new Date(date);
+                    d.setHours(hours, minutes, 0, 0);
+                    return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                }
+                const toICSDateLocal = (date, time) => {
+                    const [year, month, day] = date.split('-');
+                    return `${year}${month}${day}T${time.replace(':', '')}00`;
+                }
+
+                let icsEvents = [];
+                if (course.schedule.type === 'weekly') {
+                    // 對於週課，使用 RRULE
+                    const startDate = new Date(course.schedule.startDate);
+                    const startTime = course.schedule.startTime;
+                    const endTime = course.schedule.endTime;
+                    const dayMap = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+
+                    icsEvents.push([
+                        'BEGIN:VEVENT',
+                        `DTSTART;TZID=Asia/Taipei:${toICSDateLocal(course.schedule.startDate, startTime)}`,
+                        `DTEND;TZID=Asia/Taipei:${toICSDateLocal(course.schedule.startDate, endTime)}`,
+                        `RRULE:FREQ=WEEKLY;COUNT=${course.schedule.weeks};BYDAY=${dayMap[startDate.getDay()]}`,
+                        `SUMMARY:${course.name}`,
+                        `LOCATION:${course.location}`,
+                        `DESCRIPTION:授課教師: ${course.instructor}`,
+                        'END:VEVENT'
+                    ].join('\n'));
+                } else if (course.schedule.type === 'dates') {
+                    // 對於特定日期課程，為每個日期創建一個事件
+                    course.schedule.dates.forEach(dateStr => {
+                         icsEvents.push([
+                            'BEGIN:VEVENT',
+                            `DTSTART;TZID=Asia/Taipei:${toICSDateLocal(dateStr, course.schedule.startTime)}`,
+                            `DTEND;TZID=Asia/Taipei:${toICSDateLocal(dateStr, course.schedule.endTime)}`,
+                            `SUMMARY:${course.name}`,
+                            `LOCATION:${course.location}`,
+                            `DESCRIPTION:授課教師: ${course.instructor}`,
+                            'END:VEVENT'
+                        ].join('\n'));
+                    });
+                }
+                
+                const icsContent = [
+                    'BEGIN:VCALENDAR',
+                    'VERSION:2.0',
+                    'PRODID:-//MyCourseCalendar//TW',
+                    'CALSCALE:GREGORIAN',
+                    'BEGIN:VTIMEZONE',
+                    'TZID:Asia/Taipei',
+                    'TZURL:http://tzurl.org/zoneinfo-outlook/Asia/Taipei',
+                    'X-LIC-LOCATION:Asia/Taipei',
+                    'BEGIN:STANDARD',
+                    'TZOFFSETFROM:+0800',
+                    'TZOFFSETTO:+0800',
+                    'TZNAME:CST',
+                    'DTSTART:19700101T000000',
+                    'END:STANDARD',
+                    'END:VTIMEZONE',
+                    ...icsEvents,
+                    'END:VCALENDAR'
+                ].join('\n');
+
+                download(`${course.name}.ics`, icsContent);
+            }
+
+            function download(filename, text) {
+                const element = document.createElement('a');
+                element.setAttribute('href', 'data:text/calendar;charset=utf-8,' + encodeURIComponent(text));
+                element.setAttribute('download', filename);
+                element.style.display = 'none';
+                document.body.appendChild(element);
+                element.click();
+                document.body.removeChild(element);
+            }
+
+            // --- 事件監聽 ---
+            document.querySelectorAll('.export-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    const courseName = this.getAttribute('data-course-name');
+                    const courseData = courses.find(c => c.name === courseName);
+                    if (courseData) {
+                        generateICS(courseData);
+                    }
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>
